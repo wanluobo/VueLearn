@@ -3,16 +3,28 @@
       <div class="content">
         <div class="content-left">
           <div class="logo-wrapper">
-            <div class="logo">
-              <i class="icon-shopping_cart"></i>
+            <div class="logo" :class="{'highlight':totalCount>0}">
+              <i class="icon-shopping_cart" :class="{'highlight':totalCount>0}"></i>
             </div>
+            <div class="num" v-show="totalCount>0">{{totalCount}}</div>
           </div>
-          <div class="price">0元</div>
-          <div class="desc">另需配送费{{deliveryPrice}}元</div>
+          <div class="price" :class="{'highlight':totalPrice>0}">{{totalPrice}}元</div>
+          <div class="desc">{{deliveryPrice}}元</div>
         </div>
         <div class="content-right">
-          <div class="pay">{{minPrice}}元起送</div>
+          <div class="pay" :class="payClass">{{payDesc}}</div>
         </div>
+      </div>
+      <div class="ball-container">
+        <transition-group name="drop" tag="div"
+                          v-on:before-enter="beforeEnter"
+                          v-on:enter="enter"
+                          v-on:after-enter="afterEnter"
+        >
+          <div v-for="(ball,index) in balls" v-bind:key="index" v-show="ball.show" class="ball">
+            <div class="inner inner-hook"></div>
+          </div>
+        </transition-group>
       </div>
    </div>
 </template>
@@ -23,7 +35,12 @@
       selectFoods:{
         type:Array,
         default(){
-          return [];
+          return [
+            {
+              price:100,
+              count:1
+            }
+          ];
         }
       },
       deliveryPrice:{
@@ -34,6 +51,146 @@
         type:Number,
         default:0
       }
+    },
+    data(){
+      return{
+        balls:[{
+          show:false
+        },{
+          show:false
+        },{
+          show:false
+        },{
+          show:false
+        },{
+          show:false
+        }],
+        dropBalls:[]
+      }
+    },
+    computed:{
+      totalPrice(){
+        let total=0;
+        this.selectFoods.forEach((food)=>{
+          total+=food.price*food.count;
+        });
+        return total;
+      },
+      totalCount(){
+        let count=0;
+        this.selectFoods.forEach((food)=>{
+          count+=food.count;
+        });
+        return count
+      },
+      payDesc(){
+          if(this.totalPrice===0){
+            return `￥${this.minPrice}元起送`;
+          }else if(this.totalPrice<this.minPrice){
+            var diff=this.minPrice-this.totalPrice;
+            return `还差￥${diff}元起送`;
+          }else {
+            return '去结算';
+          }
+      },
+      payClass(){
+        if(this.totalPrice<this.minPrice){
+          return 'not-enough';
+        }else {
+          return 'enough';
+        }
+      }
+    },
+    methods:{
+      drop(el) {
+        console.log(el);
+        for(var i=0;i<this.balls.length;i++){
+          let ball=this.balls[i];
+          if(!ball.show){
+            ball.show=true;
+            ball.el=el;
+            this.dropBalls.push(ball)
+            return;
+          }
+        }
+      },
+      // --------
+      // 进入中
+      // --------
+      beforeEnter: function (el) {
+        console.log('1')
+        let  count=this.balls.length;
+        while (count--){
+          let ball=this.balls[count];
+          if(ball.show){
+            let rect=ball.el.getBoundingClientRect();
+            let x=rect.left;
+            let y=-(window.innerHeight-rect.top-22);
+            el.style.display='';
+            el.style.webkitTransform=`translate3d(0,${y}px,0)`
+            el.style.transform=`translate3d(0,${y}px,0)`;
+            let inner=el.getElementsByClassName('inner-hook')[0];
+            inner.style.webkitTransform=`translate3d(${x}px,0,0)`;
+            inner.style.transform=`translate3d(${x}px,0,0)`;
+
+            console.log(x,y,inner.style.webkitTransform)
+          }
+        }
+      },
+      // 此回调函数是可选项的设置
+      // 与 CSS 结合时使用
+      enter: function (el, done) {
+
+        let rg=el.offsetHeight;
+        this.$nextTick(()=>{
+          el.style.webkitTransform='translate3d(0,0,0)'
+          el.style.transform='translate3d(0,0,0)';
+          let inner=el.getElementsByClassName('inner-hook')[0];
+          inner.style.webkitTransform='translate3d(0,0,0)';
+          inner.style.transform='translate3d(0,0,0)';
+          console.log('2')
+          done();
+        })
+
+
+      },
+      afterEnter: function (el) {
+        console.log('3')
+        var me=this;
+        setTimeout(function () {
+          let ball=me.dropBalls.shift();
+          if(ball){
+            ball.show=false;
+            el.style.display='none'
+          }
+        },100)
+
+
+        // ...
+      },
+/*      enterCancelled: function (el) {
+        // ...
+      },
+      // --------
+      // 离开时
+      // --------
+      beforeLeave: function (el) {
+        // ...
+      },
+      // 此回调函数是可选项的设置
+      // 与 CSS 结合时使用
+      leave: function (el, done) {
+        // ...
+        done()
+      },
+      afterLeave: function (el) {
+        // ...
+      },
+      // leaveCancelled 只用于 v-show 中
+      leaveCancelled: function (el) {
+        // ...
+      }*/
+
     }
   }
 
@@ -41,6 +198,17 @@
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped lang="less" type="text/less" rel="stylesheet/less">
+  .drop-enter-active, .drop-leave-active {
+    opacity: 1;
+    /*transform: translate3D(0,0,0)  rotate(0);*/
+  }
+  .drop-enter, .drop-leave-to /* .fade-leave-active in below version 2.1.8 */ {
+    opacity: 0;
+    /*transform: translate3D(24px,0,0) rotate(180deg);*/
+  }
+  .drop-move{
+    transition: all 1s;
+  }
 .shopcart{
   position: fixed;
   left: 0;
@@ -72,11 +240,32 @@
           border-radius: 50%;
           background: #2b343c;
           text-align: center;
+          &.highlight{
+            background: rgb(0,160,220);
+          }
           .icon-shopping_cart{
             font-size: 24px;
             color: #80858a;
             line-height: 44px;
+            &.highlight{
+              color: #fff;
+            }
           }
+        }
+        .num{
+          position: absolute;
+          top: 0;
+          right: 0;
+          width: 24px;
+          height: 16px;
+          line-height: 16px;
+          text-align: center;
+          border-radius: 16px;
+          font-size: 9px;
+          font-weight: 700;
+          color: #fff;
+          background: rgb(240,20,20);
+          box-shadow: 0 4px 8px 0 rgba(0,0,0,0.4);
         }
       }
       .price{
@@ -90,6 +279,9 @@
         font-size: 16px;
         font-weight: 700;
         color: rgba(255,255,255,0.4);
+        &.highlight{
+          color: #fff;
+        }
       }
       .desc{
         display: inline-block;
@@ -111,6 +303,29 @@
         color:rgba(255,255,255,0.4);
         font-weight: 700;
         background: #2b333b;
+        &.not-enough{
+          background: #2b333b;
+        }
+        &.enough{
+          background: #00b34c;
+          color: #fff;
+        }
+      }
+    }
+  }
+  .ball-container{
+    .ball{
+      position: fixed;
+      left: 32px;
+      bottom: 22px;
+      z-index: 200;
+      transition: all 0.4s cubic-bezier(0.49,-0.29,0.75,0.41);
+      .inner{
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: rgb(0,160,220);
+        transition: all 0.4s linear;
       }
     }
   }
